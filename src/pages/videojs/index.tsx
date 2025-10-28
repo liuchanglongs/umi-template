@@ -3,9 +3,9 @@
  * @Date: 2024/5/15
  */
 
-import React from 'react';
+import React from "react";
 
-import VideoJS from '../conponents/Video';
+import VideoJS from "./conponents/Video";
 const DocsPage = () => {
   const playerRef = React.useRef(null);
 
@@ -14,15 +14,15 @@ const DocsPage = () => {
     playerRef.current = player;
     // 播放器的子事件在这里定义
 
-    player.on('canplaythrough', () => {
-      console.log('视频加载完成！');
+    player.on("canplaythrough", () => {
+      console.log("视频加载完成！");
     });
 
-    player.on('error', () => {
+    player.on("error", () => {
       console.log(`视频文件加载失败，请稍后重试！`);
     });
 
-    player.on('stalled', () => {
+    player.on("stalled", () => {
       console.log(`网络异常，请稍后重试！`);
     });
   };

@@ -1,9 +1,13 @@
-import { defineConfig } from 'umi';
-
-export default defineConfig({
+export default {
   routes: [
-    { path: '/', component: 'index' },
-    { path: '/docs', component: 'docs' },
+    {
+      path: "/",
+      component: "index",
+      routes: [
+        { path: "/videojs", component: "@/pages/videojs" },
+        { path: "/yuying", component: "@/pages/yuying" },
+        { path: "/react-ace", component: "@/pages/react-ace" },
+      ],
+    },
   ],
-  npmClient: 'yarn',
-});
+};

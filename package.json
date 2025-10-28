@@ -12,6 +12,9 @@
     "@ant-design/pro-layout": "^7.19.0",
     "antd": "^5.17.2",
     "axios": "^1.6.8",
+    "file-loader": "^6.2.0",
+    "react-ace": "^11.0.1",
+    "react-ace-builds": " ^7.4.1",
     "umi": "^4.2.3",
     "video.js": "^8.10.0"
   },
