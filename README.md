@@ -14,3 +14,7 @@
 ```
 
 4. 视频帧预览
+5. 浏览器标签页通信
+
+- react-redux 是不能够跨标签通信
+- BroadcastChannel、localStorage 实现通信

@@ -11,6 +11,10 @@ export default {
           path: "/video-frame-preview",
           component: "@/pages/VideoFramePreview",
         },
+        {
+          path: "/cross-tab-communication",
+          component: "@/pages/crossTabCommunication",
+        },
       ],
     },
   ],
