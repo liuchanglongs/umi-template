@@ -7,6 +7,10 @@ export default {
         { path: "/videojs", component: "@/pages/videojs" },
         { path: "/yuying", component: "@/pages/yuying" },
         { path: "/react-ace", component: "@/pages/react-ace" },
+        {
+          path: "/video-frame-preview",
+          component: "@/pages/VideoFramePreview",
+        },
       ],
     },
   ],

@@ -32,6 +32,7 @@ const items: MenuItem[] = [
   getItem("VideoJS", "/videojs", <PieChartOutlined />),
   getItem("语音播放", "/yuying", <DesktopOutlined />),
   getItem("代码编辑器react-ace", "/react-ace", <DesktopOutlined />),
+  getItem("视频帧预览", "/video-frame-preview", <DesktopOutlined />),
   //   getItem("代码编辑器react-ace", "/react-ace", <UserOutlined />, [
   //     getItem("Tom", "3"),
   //     getItem("Bill", "4"),
