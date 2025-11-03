@@ -9,6 +9,8 @@ import {
 import type { MenuProps } from "antd";
 import { Breadcrumb, Layout, Menu, theme } from "antd";
 import { Outlet, useNavigate } from "umi";
+import store from "../reactRedux";
+import { Provider } from "react-redux";
 
 const { Header, Content, Footer, Sider } = Layout;
 
@@ -33,6 +35,8 @@ const items: MenuItem[] = [
   getItem("语音播放", "/yuying", <DesktopOutlined />),
   getItem("代码编辑器react-ace", "/react-ace", <DesktopOutlined />),
   getItem("视频帧预览", "/video-frame-preview", <DesktopOutlined />),
+  getItem("标签页通信", "/cross-tab-communication", <DesktopOutlined />),
+
   //   getItem("代码编辑器react-ace", "/react-ace", <UserOutlined />, [
   //     getItem("Tom", "3"),
   //     getItem("Bill", "4"),
@@ -87,7 +91,9 @@ const App: React.FC = () => {
               borderRadius: borderRadiusLG,
             }}
           >
-            <Outlet />
+            <Provider store={store}>
+              <Outlet />
+            </Provider>
           </div>
         </Content>
         {/* <Footer style={{ textAlign: "center" }}>
