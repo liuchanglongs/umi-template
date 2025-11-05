@@ -18,3 +18,5 @@
 
 - react-redux 是不能够跨标签通信
 - BroadcastChannel、localStorage 实现通信
+
+6. requestAnimationFrame 优化长列表

@@ -15,6 +15,10 @@ export default {
           path: "/cross-tab-communication",
           component: "@/pages/crossTabCommunication",
         },
+        {
+          path: "/requestAnimationFrame",
+          component: "@/pages/requestAnimationFrame",
+        },
       ],
     },
   ],
