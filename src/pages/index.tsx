@@ -36,6 +36,7 @@ const items: MenuItem[] = [
   getItem("代码编辑器react-ace", "/react-ace", <DesktopOutlined />),
   getItem("视频帧预览", "/video-frame-preview", <DesktopOutlined />),
   getItem("标签页通信", "/cross-tab-communication", <DesktopOutlined />),
+  getItem("关闭浏览器标签", "/close-tab", <DesktopOutlined />),
   getItem(
     "requestAnimationFrame",
     "/requestAnimationFrame",

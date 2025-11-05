@@ -19,6 +19,10 @@ export default {
           path: "/requestAnimationFrame",
           component: "@/pages/requestAnimationFrame",
         },
+        {
+          path: "/close-tab",
+          component: "@/pages/closeTab",
+        },
       ],
     },
   ],

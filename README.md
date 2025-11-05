@@ -20,3 +20,6 @@
 - BroadcastChannel、localStorage 实现通信
 
 6. requestAnimationFrame 优化长列表
+
+7. 关闭浏览器标签
+   ![alt text](./src/assets/image.png)
