@@ -23,6 +23,10 @@ export default {
           path: "/close-tab",
           component: "@/pages/closeTab",
         },
+        {
+          path: "/to-picture",
+          component: "@/pages/toPicture",
+        },
       ],
     },
   ],

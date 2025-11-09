@@ -23,3 +23,5 @@
 
 7. 关闭浏览器标签
    ![alt text](./src/assets/image.png)
+
+8. 网页复制成图片到剪切板技术

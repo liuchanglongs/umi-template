@@ -42,6 +42,7 @@ const items: MenuItem[] = [
     "/requestAnimationFrame",
     <DesktopOutlined />
   ),
+  getItem("网页复制成图片", "/to-picture", <DesktopOutlined />),
 
   //   getItem("代码编辑器react-ace", "/react-ace", <UserOutlined />, [
   //     getItem("Tom", "3"),
