@@ -1,25 +1,5 @@
 import { throttle } from "lodash-es";
 
-// 复用之前定义的核心类型
-export interface FormDataValue {
-  [key: string]:
-    | string
-    | number
-    | boolean
-    | null
-    | undefined
-    | Record<string, any>;
-}
-
-export interface FormDataWrapper<T extends FormDataValue> {
-  value: T;
-}
-
-export interface BroadcastMessage<T extends FormDataValue> {
-  formId: string | "all";
-  data: T | null;
-}
-
 // 通信类型枚举（扩展清晰）
 export type CrossType = "broadCastChannel" | "localStorage";
 
@@ -36,7 +16,7 @@ class BroadcastChannelCross {
   }
 
   // 发送消息
-  sendMessage<T extends FormDataValue>(message: BroadcastMessage<T>): void {
+  sendMessage<T>(message: T): void {
     try {
       this.channel.postMessage(JSON.stringify(message));
       if (this.parent.permist) {
@@ -48,9 +28,7 @@ class BroadcastChannelCross {
   }
 
   // 节流发送消息
-  throttleSendMessage<T extends FormDataValue>(
-    message: BroadcastMessage<T>
-  ): void {
+  throttleSendMessage<T>(message: T): void {
     throttle(() => this.sendMessage(message), 1500);
   }
 
@@ -58,9 +36,7 @@ class BroadcastChannelCross {
    * 注册消息回调
    * listenerFn：为啥传函数。因为vue与react中的数据更新方式一样，所以直接抛出函数调用，得到的数据外部处理
    * */
-  onMessage<T extends FormDataValue>(
-    listenerFn: (data: BroadcastMessage<T>) => void
-  ): void {
+  onMessage<T>(listenerFn: (data: T) => void): void {
     this.channel.addEventListener("message", (event) => {
       listenerFn(JSON.parse(event.data));
     });
@@ -75,7 +51,6 @@ class BroadcastChannelCross {
 //  LocalStorage 通信管理类
 class LocalStorageChannel {
   public channelId: string;
-  private messageHandlers: ((data: any) => void)[] = []; // 消息回调集合
   private parent: MyChannelCrossTabMessage;
   private fn: any;
   constructor(channelId: string, parent: MyChannelCrossTabMessage) {
@@ -84,7 +59,7 @@ class LocalStorageChannel {
   }
 
   // 发送消息
-  sendMessage<T extends FormDataValue>(message: BroadcastMessage<T>): void {
+  sendMessage<T>(message: T): void {
     try {
       this.parent.storage?.setData(message);
     } catch (error) {
@@ -93,22 +68,22 @@ class LocalStorageChannel {
   }
 
   // 节流发送消息
-  throttleSendMessage<T extends FormDataValue>(
-    message: BroadcastMessage<T>
-  ): void {
+  throttleSendMessage<T>(message: T): void {
     throttle(() => this.sendMessage(message), 1500);
   }
 
   // 注册消息回调
-  onMessage<T extends FormDataValue>(
-    listenerFn: (data: BroadcastMessage<T>) => void
-  ): void {
+  onMessage<T>(listenerFn: (data: T) => void): void {
     this.fn = (event: StorageEvent) => {
       // 只处理我们的消息
-      if (event.key === this.channelId && event.newValue) {
+      if (event.key === this.parent.storage?.storagekey) {
         try {
-          const newValue = JSON.parse(event.newValue);
-          listenerFn(newValue);
+          if (event.newValue) {
+            const newValue = JSON.parse(event.newValue);
+            listenerFn(newValue[this.parent.channelId] || null);
+          } else {
+            listenerFn(null);
+          }
         } catch (error) {
           console.error("解析消息失败:", error);
         }
@@ -125,25 +100,32 @@ class LocalStorageChannel {
 
 // 浏览器存储管理
 class StorageManager {
-  private storagekey: string;
-  constructor(storagekey: string = "form_storage_key") {
+  public storagekey: string;
+  private parent: MyChannelCrossTabMessage;
+  constructor(
+    parent: MyChannelCrossTabMessage,
+    storagekey: string = "form_storage_key"
+  ) {
     this.storagekey = storagekey;
+    this.parent = parent;
   }
-  setData<T extends FormDataValue>(data: BroadcastMessage<T>) {
-    const formId = data.formId;
+  setData<T>(message: T) {
+    const formId = this.parent.channelId;
     const str = this.getData();
     if (str) {
       const data = JSON.parse(str);
       localStorage.setItem(
         this.storagekey,
-        JSON.stringify({ ...data, [formId]: data })
+        JSON.stringify({ ...data, [formId]: message })
       );
     } else {
-      localStorage.setItem(this.storagekey, JSON.stringify({ [formId]: data }));
+      localStorage.setItem(
+        this.storagekey,
+        JSON.stringify({ [formId]: message })
+      );
     }
-
-    // localStorage.setItem();
   }
+
   getData(): string | null {
     return localStorage.getItem(this.storagekey);
   }
@@ -163,12 +145,15 @@ class StorageManager {
 }
 
 // 跨标签页通信统一管理类（调度两种通信方式）
+export type CurrentChannelType =
+  | BroadcastChannelCross
+  | LocalStorageChannel
+  | null;
 class MyChannelCrossTabMessage {
   public channelId: string;
   public type: CrossType;
   public storage: StorageManager | null = null;
-  private currentChannel: BroadcastChannelCross | LocalStorageChannel | null =
-    null;
+  public currentChannel: CurrentChannelType = null;
   public permist: boolean;
 
   constructor(
@@ -209,10 +194,10 @@ class MyChannelCrossTabMessage {
 
   registerStorageManager() {
     if (this.type === "broadCastChannel" && this.permist) {
-      this.storage = new StorageManager();
+      this.storage = new StorageManager(this);
     }
     if (this.type === "localStorage") {
-      this.storage = new StorageManager();
+      this.storage = new StorageManager(this);
     }
   }
 
@@ -237,28 +222,11 @@ class MyChannelCrossTabMessage {
 
     return new Promise((resolve) => {
       try {
+        // 仅验证实例化、postMessage、close 方法是否可用（无异常即视为支持）
         const testChannel = new BroadcastChannel("__broadcast_test__");
-        let isResolved = false;
-
-        testChannel.onmessage = (event) => {
-          if (!isResolved && event.data === "test_msg") {
-            isResolved = true;
-            testChannel.close();
-            resolve({ supported: true, error: null });
-          }
-        };
-
-        testChannel.postMessage("test_msg");
-
-        setTimeout(() => {
-          if (!isResolved) {
-            testChannel.close();
-            resolve({
-              supported: false,
-              error: "BroadcastChannel 消息传递异常",
-            });
-          }
-        }, 500);
+        testChannel.postMessage("test"); // 无异常即可，无需接收
+        testChannel.close(); // 立即关闭，释放资源
+        resolve({ supported: true, error: null });
       } catch (error) {
         resolve({
           supported: false,
