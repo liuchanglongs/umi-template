@@ -27,6 +27,10 @@ export default {
           path: "/to-picture",
           component: "@/pages/toPicture",
         },
+        {
+          path: "/promise",
+          component: "@/pages/promise",
+        },
       ],
     },
   ],
