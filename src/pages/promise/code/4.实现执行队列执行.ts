@@ -8,6 +8,40 @@
  * */
 
 /**
+ * 回调函数不会马上执行，会在微队列中执行。啥时候执行？
+ * 1. state改变的时候
+ * 2. 状态已经改变的时候
+ * */
+// 1. state改变的时候: 当setTimeOut改变状态的时候，executorQueue已经收集完执行队列
+// const p = new MyPromise((res, rej) => {
+//   setTimeout(()=>{
+//     res("res");
+//   }, 0)
+// });
+// p.then(
+//   () => {
+//     console.log("A1");
+//   },
+//   () => {
+//     console.log("A2");
+//   }
+// );
+
+// 2. 状态已经改变的时候，executorQueue还未收集到当前的执行队列，所以需要在then中收集完，在执行
+// const p = new MyPromise((res, rej) => {
+//     res("res");
+// });
+// p.then(
+//   () => {
+//     console.log("A1");
+//   },
+//   () => {
+//     console.log("A2");
+//   }
+// );
+
+/**--------------------------------------------------------------------------------------------------*/
+/**
  * 微队列处理函数：
  * Promise A+规范：可以在node与浏览器中使用
  * */
@@ -124,51 +158,3 @@ export class MyPromise {
     });
   }
 }
-
-// 例子1：添加的队列全放在p中
-// const p = new MyPromise((res, rej) => {
-//   res("res");
-// });
-// p.then(
-//   () => {
-//     console.log("A1");
-//   },
-//   () => {
-//     console.log("A2");
-//   }
-// );
-// p.then(
-//   () => {
-//     console.log("B1");
-//   },
-//   () => {
-//     console.log("B2");
-//   }
-// );
-// setTimeout(() => {
-//   console.log("p:", p);
-// }, 100);
-
-// 例子2：第一个promise:存放两个，决定第二个promise的执行。依次内推
-// const p = new MyPromise((res, rej) => {
-//   res("res");
-// })
-//   .then(
-//     () => {
-//       console.log("A1");
-//     },
-//     () => {
-//       console.log("A2");
-//     }
-//   )
-//   .then(
-//     () => {
-//       console.log("B1");
-//     },
-//     () => {
-//       console.log("B2");
-//     }
-//   );
-// setTimeout(() => {
-//   console.log("p:", p);
-// }, 100);
