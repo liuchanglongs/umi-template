@@ -45,7 +45,7 @@
  * 微队列处理函数：
  * Promise A+规范：可以在node与浏览器中使用
  * */
-function MmMicroTask(callback: () => any) {
+function MyMicroTask(callback: () => any) {
   if (
     typeof process !== "undefined" &&
     typeof (process as any).nextTick === "function"
@@ -71,6 +71,13 @@ function MmMicroTask(callback: () => any) {
     setTimeout(callback, 0);
   }
 }
+
+/**
+ * 利用promiseA+规范来判断是否使一个Promise
+ * promiseA+规范： 指的使then
+ * */
+const isPromise = (obj: any) =>
+  !!(obj && typeof obj === "object" && typeof obj?.then === "function");
 
 enum StateEnum {
   pending = "pending",
@@ -131,30 +138,136 @@ export class MyPromise {
     }
     this.state = state;
     this.data = data;
+    this.runExecutorQueue();
+  }
+
+  // 执行then的回调函数: 按照顺序执行
+  private runExecutorQueue() {
+    if (this.state === StateEnum.pending) return;
+    while (this.executorQueue[0]) {
+      this.runOne(this.executorQueue[0]);
+      this.executorQueue.shift(0);
+    }
+  }
+
+  /**
+   * 处理一个then的回调函数
+   * 1. callBack 为普通值、发生错误：状态与值的穿透
+   * 2. callBack 为函数
+   *    - 返回一个普通的值；
+   *    - 返回一个Promise 对象；
+   *    - 返回一个thenable值；
+   * */
+  private runOne(handler: ExecutorQueueType) {
+    const { callBack, state, reject, resolve } = handler;
+    MyMicroTask(() => {
+      if (this.state != state) return;
+      try {
+        if (typeof callBack != "function") {
+          this.state === StateEnum.fulfilled
+            ? resolve(this.data)
+            : reject(this.data);
+          return;
+        }
+        if (typeof callBack === "function") {
+          const result = callBack(this.data);
+          if (isPromise(result)) {
+            result.then(resolve, reject);
+          } else if (
+            typeof result === "object" &&
+            result?.then &&
+            typeof result?.then === "function"
+          ) {
+            result.then(resolve);
+          } else {
+            resolve(result);
+          }
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   /**
    * then: 注册队列函数
    * */
   then(onReslve?: OnReslveType | any, onReject?: OnRejectType | any) {
-    console.log(this);
     return new MyPromise((resolve: ComFn, reject: ComFn) => {
       /**
        * 注意这里的this: 箭头函数->外层->所以是then的this
        * 上层的状态、错误捕获，决定下一个promise的执行，所以要用上一个的this
        * */
       this.executorQueue.push({
-        state: this.state,
+        state: StateEnum.fulfilled,
         callBack: onReslve,
         resolve,
         reject,
       });
       this.executorQueue.push({
-        state: this.state,
+        state: StateEnum.rejected,
         callBack: onReject,
         resolve,
         reject,
       });
+      this.runExecutorQueue();
     });
   }
 }
+
+const p1 = new MyPromise((res, rej) => {
+  setTimeout(() => {
+    res("p1");
+  }, 0);
+});
+/**
+ * callBack 为普通值
+ * */
+// const p2 = p1.then(1, 2);
+
+/**
+ * callBack 为函数 返回一个普通的值；
+ * */
+// const p2 = p1.then((data: any) => {
+//   console.log("data", data);
+//   return "p2";
+// });
+
+/**
+ * callBack 为函数  返回一个Promise；
+ * */
+// const p2 = p1.then((data: any) => {
+//   console.log("data", data);
+//   return new Promise((res, rej) => {
+//     res("p2");
+//   });
+// });
+
+/**
+ * callBack 为函数  返回一个Promise；
+ * */
+// const p2 = p1.then((data: any) => {
+//   console.log("data", data);
+//   // throw "errr";
+//   return {
+//     then: (resolve: any) => {
+//       resolve(444);
+//     },
+//   };
+// });
+
+/**
+ *  模拟有错误
+ * */
+const p2 = p1.then((data: any) => {
+  console.log("data", data);
+  throw "errr";
+});
+
+// const p3 = p2.then(3, 4);
+
+setTimeout(() => {
+  console.log("p1", p1);
+  console.log("p2", p2);
+}, 1000);
+// console.log("p3", p3);
