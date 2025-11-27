@@ -1,44 +1,9 @@
 /**
- * 思考实现任何一个函数：
- * - 参数咋传递：两个参数 onreslve, onreject
- * - 返回值是啥:新的promise
- * - 这个函数做啥:
- *     - 怎么注册这两个回调函数：创建执行队列 -> then函数中返回的MyPromise中添加执行队列
- *     - 回调函数不会马上执行，会在微队列中执行。啥时候执行？
+ *  finally:接收一个没有参数的函数
+ * - 当Promise状态发生变化时，无论什么状态都会执行,finally里面的函数都会执行.状态与值都与上一层一致的
+ * - 回调函数没有参数、不返回值
+ * - 自己的回调函数抛出错误，那么就是输出rejected与错误的值
  * */
-
-/**
- * 回调函数不会马上执行，会在微队列中执行。啥时候执行？
- * 1. state改变的时候
- * 2. 状态已经改变的时候
- * */
-// 1. state改变的时候: 当setTimeOut改变状态的时候，executorQueue已经收集完执行队列
-// const p = new MyPromise((res, rej) => {
-//   setTimeout(()=>{
-//     res("res");
-//   }, 0)
-// });
-// p.then(
-//   () => {
-//     console.log("A1");
-//   },
-//   () => {
-//     console.log("A2");
-//   }
-// );
-
-// 2. 状态已经改变的时候，executorQueue还未收集到当前的执行队列，所以需要在then中收集完，在执行
-// const p = new MyPromise((res, rej) => {
-//     res("res");
-// });
-// p.then(
-//   () => {
-//     console.log("A1");
-//   },
-//   () => {
-//     console.log("A2");
-//   }
-// );
 
 /**--------------------------------------------------------------------------------------------------*/
 /**
@@ -213,62 +178,70 @@ export class MyPromise {
       this.runExecutorQueue();
     });
   }
+
+  catch(onReject?: OnRejectType) {
+    return this.then(null, onReject);
+  }
+
+  finally(fn: () => any) {
+    return this.then(
+      (data: any) => {
+        fn();
+        return data;
+      },
+      (data: any) => {
+        fn();
+        return data;
+      }
+    );
+  }
 }
 
-const p1 = new MyPromise((res, rej) => {
-  setTimeout(() => {
-    res("p1");
-  }, 0);
-});
-/**
- * callBack 为普通值
- * */
-// const p2 = p1.then(1, 2);
-
-/**
- * callBack 为函数 返回一个普通的值；
- * */
-// const p2 = p1.then((data: any) => {
-//   console.log("data", data);
-//   return "p2";
+// const p1 = new Promise((res, rej) => {
+//   res("p1");
+// });
+// const p2 = p1.finally(() => {
+//   console.log("finally");
+//   return 456;
 // });
 
-/**
- * callBack 为函数  返回一个Promise；
- * */
-const p2 = p1.then((data: any) => {
-  console.log("data", data);
-  return new Promise((res, rej) => {
-    // res("p2");
-    rej("rej");
+// const p3 = p2.then((res) => {
+//   console.log("p3-->", res);
+// });
+// const p4 = p3.then((res) => {
+//   console.log("p4-->", res);
+// });
+
+// setTimeout(() => {
+//   console.log("p1", p1);
+//   console.log("p2", p2);
+//   console.log("p3", p3);
+//   console.log("p4", p4);
+// }, 1000);
+
+const p11 = new MyPromise((res, rej) => {
+  res("p11");
+});
+const p22 = p11.finally(() => {
+  console.log("finally");
+  // return 456;
+  throw "err 456";
+});
+
+const p33 = p22.then((res) => {
+  console.log("p33-->", res);
+});
+const p44 = p33
+  .then((res) => {
+    console.log("p4-->", res);
+  })
+  .catch((err) => {
+    console.log(err);
   });
-});
-
-/**
- * callBack 为函数  返回一个Promise；
- * */
-// const p2 = p1.then((data: any) => {
-//   console.log("data", data);
-//   // throw "errr";
-//   return {
-//     then: (resolve: any) => {
-//       resolve(444);
-//     },
-//   };
-// });
-
-/**
- *  模拟有错误
- * */
-// const p2 = p1.then((data: any) => {
-//   console.log("data", data);
-//   throw "errr";
-// });
-
-// const p3 = p2.then(3, 4);
 
 setTimeout(() => {
-  console.log("p1", p1);
-  console.log("p2", p2);
+  console.log("p11", p11);
+  console.log("p22", p22);
+  console.log("p33", p33);
+  console.log("p44", p44);
 }, 1000);
-// console.log("p3", p3);

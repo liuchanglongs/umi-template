@@ -1,44 +1,9 @@
 /**
- * 思考实现任何一个函数：
- * - 参数咋传递：两个参数 onreslve, onreject
- * - 返回值是啥:新的promise
- * - 这个函数做啥:
- *     - 怎么注册这两个回调函数：创建执行队列 -> then函数中返回的MyPromise中添加执行队列
- *     - 回调函数不会马上执行，会在微队列中执行。啥时候执行？
+ * catch:
+ * - 捕获它前面的异常错误（reject\throw new Error()、代码异常）：可以接多个catch,每个catch都返回一个promise，类似then.
+ * - 如果前面代码then，执行了err，那么无法捕获.
+ * - 注意catch回调方法、then(null, catch回调方法):回调执行完后都是fulfilled
  * */
-
-/**
- * 回调函数不会马上执行，会在微队列中执行。啥时候执行？
- * 1. state改变的时候
- * 2. 状态已经改变的时候
- * */
-// 1. state改变的时候: 当setTimeOut改变状态的时候，executorQueue已经收集完执行队列
-// const p = new MyPromise((res, rej) => {
-//   setTimeout(()=>{
-//     res("res");
-//   }, 0)
-// });
-// p.then(
-//   () => {
-//     console.log("A1");
-//   },
-//   () => {
-//     console.log("A2");
-//   }
-// );
-
-// 2. 状态已经改变的时候，executorQueue还未收集到当前的执行队列，所以需要在then中收集完，在执行
-// const p = new MyPromise((res, rej) => {
-//     res("res");
-// });
-// p.then(
-//   () => {
-//     console.log("A1");
-//   },
-//   () => {
-//     console.log("A2");
-//   }
-// );
 
 /**--------------------------------------------------------------------------------------------------*/
 /**
@@ -213,62 +178,39 @@ export class MyPromise {
       this.runExecutorQueue();
     });
   }
+
+  catch(onReject?: OnRejectType) {
+    return this.then(null, onReject);
+  }
 }
 
 const p1 = new MyPromise((res, rej) => {
   setTimeout(() => {
-    res("p1");
+    // res("p1");
+    rej("p1 rej");
   }, 0);
 });
 /**
- * callBack 为普通值
- * */
-// const p2 = p1.then(1, 2);
-
-/**
- * callBack 为函数 返回一个普通的值；
- * */
-// const p2 = p1.then((data: any) => {
-//   console.log("data", data);
-//   return "p2";
-// });
-
-/**
  * callBack 为函数  返回一个Promise；
  * */
-const p2 = p1.then((data: any) => {
-  console.log("data", data);
-  return new Promise((res, rej) => {
-    // res("p2");
-    rej("rej");
-  });
+const p2 = p1.then(
+  (data: any) => {
+    console.log("data", data);
+    return new Promise((res, rej) => {
+      res("p2 rej");
+    });
+  },
+  (err: any) => {
+    console.log(err);
+  }
+);
+
+const p3 = p2.catch((err) => {
+  console.log("err-->", err);
 });
-
-/**
- * callBack 为函数  返回一个Promise；
- * */
-// const p2 = p1.then((data: any) => {
-//   console.log("data", data);
-//   // throw "errr";
-//   return {
-//     then: (resolve: any) => {
-//       resolve(444);
-//     },
-//   };
-// });
-
-/**
- *  模拟有错误
- * */
-// const p2 = p1.then((data: any) => {
-//   console.log("data", data);
-//   throw "errr";
-// });
-
-// const p3 = p2.then(3, 4);
 
 setTimeout(() => {
   console.log("p1", p1);
   console.log("p2", p2);
+  console.log("p3", p3);
 }, 1000);
-// console.log("p3", p3);
