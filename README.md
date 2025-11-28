@@ -26,3 +26,5 @@
    ![alt text](./src/assets/image.png)
 
 8. 网页复制成图片到剪切板技术
+
+9. Promise 源码实现：/promise

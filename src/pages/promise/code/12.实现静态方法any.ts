@@ -1,0 +1,382 @@
+/**
+ * Promise.race:方法会发起并行的 Promise 异步操作，只要任何一个异步操作完成(resolve、reject)，
+ * 就立即执行下一步的 .then 操作（赛跑机制：只返回最先完成的那个）
+ * - 其它跟Promise.all一样。
+ * */
+
+function MyMicroTask(callback: () => any) {
+  if (
+    typeof process !== "undefined" &&
+    typeof (process as any).nextTick === "function"
+  ) {
+    //node 环境
+    (process as any).nextTick(callback);
+    // console.log("node环境:queueMicrotaskprocess");
+    return;
+  } else if (typeof queueMicrotask === "function") {
+    // node 浏览器
+    queueMicrotask(callback);
+    // console.log("node 浏览器环境:queueMicrotask");
+    return;
+  } else if (MutationObserver) {
+    const p = document.createElement("p");
+    const observe = new MutationObserver(callback);
+    observe.observe(p, { childList: true });
+    p.innerHTML = "1";
+    // console.log("浏览器环境:queueMicrotask");
+    return;
+  } else {
+    // console.log("setTimeout 兜底");
+    setTimeout(callback, 0);
+  }
+}
+
+/**
+ * 利用promiseA+规范来判断是否使一个Promise
+ * promiseA+规范： 指的使then
+ * */
+const isPromise = (obj: any) =>
+  !!(obj && typeof obj === "object" && typeof obj?.then === "function");
+
+enum StateEnum {
+  pending = "pending",
+  fulfilled = "fulfilled",
+  rejected = "rejected",
+}
+
+type OnReslveType = (data?: any) => any;
+type OnRejectType = (data?: any) => any;
+type ComFn = (data?: any) => any;
+interface ExecutorQueueType {
+  /**
+   * 当前promise的状态
+   * */
+  state: StateEnum;
+  /**
+   * 当前promise.then中的回调函数
+   * */
+  callBack?: OnReslveType | OnRejectType | any;
+  /**
+   * 下一个Promise 的执行方法
+   * state === fulfilled：调用reslove
+   * state === rejected：调用reject
+   * */
+  //让then函数返回的Promise成功
+  resolve: ComFn;
+  //让then函数返回的Promise失败
+  reject: ComFn;
+}
+
+export class MyPromise {
+  private state: StateEnum = StateEnum.pending;
+  private data: any;
+  private executorQueue: ExecutorQueueType[] = [];
+  constructor(executor: (_resolve: ComFn, _reject: ComFn) => void) {
+    try {
+      executor(this._reslove.bind(this), this._reject.bind(this));
+    } catch (error) {
+      this._reject(error);
+    }
+  }
+  /**
+   * 标记当前任务完成
+   * @param {any} data 任务完成的相关数据
+   */
+  private _reslove(data?: any) {
+    this.changeState(StateEnum.fulfilled, data);
+  }
+  /**
+   * 标记当前任务失败
+   * @param {any} reason 任务失败的相关数据
+   */
+  private _reject(msg?: any) {
+    this.changeState(StateEnum.rejected, msg);
+  }
+  /**
+   * 更改任务状态函数
+   * */
+  private changeState(state: StateEnum, data: any) {
+    if (this.state != StateEnum.pending) {
+      return;
+    }
+    this.state = state;
+    this.data = data;
+    this.runExecutorQueue();
+  }
+
+  // 执行then的回调函数: 按照顺序执行
+  private runExecutorQueue() {
+    if (this.state === StateEnum.pending) return;
+    while (this.executorQueue[0]) {
+      this.runOne(this.executorQueue[0]);
+      this.executorQueue.shift(0);
+    }
+  }
+
+  /**
+   * 处理一个then的回调函数
+   * 1. callBack 为普通值、发生错误：状态与值的穿透
+   * 2. callBack 为函数
+   *    - 返回一个普通的值；
+   *    - 返回一个Promise 对象；
+   *    - 返回一个thenable值；
+   * */
+  private runOne(handler: ExecutorQueueType) {
+    const { callBack, state, reject, resolve } = handler;
+    MyMicroTask(() => {
+      if (this.state != state) return;
+      try {
+        if (typeof callBack != "function") {
+          this.state === StateEnum.fulfilled
+            ? resolve(this.data)
+            : reject(this.data);
+          return;
+        }
+        if (typeof callBack === "function") {
+          const result = callBack(this.data);
+          if (isPromise(result)) {
+            result.then(resolve, reject);
+          } else if (
+            typeof result === "object" &&
+            result?.then &&
+            typeof result?.then === "function"
+          ) {
+            // 无论上一个是fulfill状态还是reject状态。都是调用最新的promise任务标记为完成
+            result.then(resolve);
+          } else {
+            // 只要是函数
+            resolve(result);
+          }
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * 处理异步操作的Promise方法 用于注册Promise的成功和失败回调
+   * @param {(OnReslveType | any)} [onReslve] Promise成功时的回调函数
+   * @param {(OnRejectType | any)} [onReject]
+   * @return {*}
+   * @memberof MyPromise
+   */
+  then(onReslve?: OnReslveType | any, onReject?: OnRejectType | any) {
+    return new MyPromise((resolve: ComFn, reject: ComFn) => {
+      /**
+       * 注意这里的this: 箭头函数->外层->所以是then的this
+       * 上层的状态、错误捕获，决定下一个promise的执行，所以要用上一个的this
+       * */
+      this.executorQueue.push({
+        state: StateEnum.fulfilled,
+        callBack: onReslve,
+        resolve,
+        reject,
+      });
+      this.executorQueue.push({
+        state: StateEnum.rejected,
+        callBack: onReject,
+        resolve,
+        reject,
+      });
+      this.runExecutorQueue();
+    });
+  }
+
+  catch(onReject?: OnRejectType) {
+    return this.then(null, onReject);
+  }
+
+  finally(fn: () => any) {
+    return this.then(
+      (data: any) => {
+        fn();
+        return data;
+      },
+      (data: any) => {
+        fn();
+        return data;
+      }
+    );
+  }
+  /**
+   *返回一个完成的promise
+   * @param {*} [data]
+   * @memberof MyPromise
+   */
+  static resolve(data?: any) {
+    if (data instanceof MyPromise) {
+      return data;
+    }
+    return new MyPromise((reslove, rej) => {
+      if (isPromise(data)) {
+        return data.then(reslove, rej);
+      } else {
+        return reslove(data);
+      }
+    });
+  }
+  /**
+   *返回一个失败的promise状态的Promise。
+   * @param {*} [data]
+   * @return {*}
+   * @memberof MyPromise
+   */
+
+  static reject(data?: any) {
+    return new MyPromise((res, rej) => {
+      rej(data);
+    });
+  }
+
+  /**
+   *all函数
+   * @param {Iterable<any>} data 不一定有数组的方法，只能被for of遍历。所以不能用数组的方法
+   * @memberof MyPromise
+   *
+   */
+  static all(data: Iterable<any>) {
+    const result: any[] = [];
+    let length = 0; // Promise的总数
+    let fulfilledCount = 0; // 已完成的数量
+    return new MyPromise((resolve, rejected) => {
+      try {
+        for (const dn of data) {
+          let index = length; //对应的位置
+          length++;
+          MyPromise.resolve(dn).then((res: any) => {
+            fulfilledCount++;
+            //添加值
+            result[index] = res;
+            // 完成执行返回结果
+            if (fulfilledCount === length) {
+              resolve(result);
+            }
+          }, rejected);
+        }
+        if (length === 0) {
+          resolve(result);
+        }
+      } catch (error) {
+        console.log("all error", error);
+        rejected(error);
+      }
+    });
+  }
+
+  /**
+   * 简单梳理：
+   * - allSettled：全部执行完返回对应状态的值。
+   * - all:全部执行完返回fulfilled状态的值。
+   * 那么我们可以把allSettled的参数全部转成fulfilled状态，
+   * 弄成一个数组，然后传给MyPromise.all
+   * @param {Iterable<any>} data
+   * @return {*}
+   * @memberof MyPromise
+   */
+  static allSettled(data: Iterable<any>) {
+    const result: MyPromise[] = [];
+    for (const element of data) {
+      result.push(
+        MyPromise.resolve(element).then(
+          (value: any) => ({ status: StateEnum.fulfilled, value }),
+          (reason: any) => ({ status: StateEnum.rejected, reason })
+        )
+      );
+    }
+    return MyPromise.all(result);
+  }
+
+  /**
+   * 输出最先有状态的
+   * @param {Iterable<any>} data
+   * @return {*}
+   * @memberof MyPromise
+   */
+  static race(data: Iterable<any>) {
+    return new MyPromise((resolve, rejected) => {
+      for (const element of data) {
+        //谁先完成为谁的值，因为状态一改变，就不会在赋值
+        MyPromise.resolve(element).then(resolve, rejected);
+      }
+    });
+  }
+
+  /**
+   * 该方法会在任一Promise成功时返回其结果，全部失败时抛出AggregateError：
+   * - 类是all函数的实现方式
+   * @param {Iterable<any>} data
+   * @return {*}
+   * @memberof MyPromise
+   */
+  static any(data: Iterable<any>) {
+    const result: any[] = [];
+    let length = 0; // Promise的总数
+    let fulfilledCount = 0; // 已完成的数量
+    return new MyPromise((resolve, rejected) => {
+      try {
+        for (const dn of data) {
+          let index = length; //对应的位置
+          length++;
+          MyPromise.resolve(dn).then(resolve, (reason: any) => {
+            fulfilledCount++;
+            //添加值
+            result[index] = reason;
+            // 完成执行返回结果
+            if (fulfilledCount === length) {
+              resolve({
+                result,
+                msg: new AggregateError("All promises were rejected"),
+              });
+            }
+          });
+        }
+        if (length === 0) {
+          resolve({
+            result,
+            msg: new AggregateError("All promises were rejected"),
+          });
+        }
+      } catch (error) {
+        console.log("all error", error);
+        rejected(error);
+      }
+    });
+  }
+}
+
+const p1 = new MyPromise((res, rej) => {
+  setTimeout(() => {
+    res("p1");
+  }, 1000);
+});
+
+const p2 = new MyPromise((res, rej) => {
+  setTimeout(() => {
+    res("p1");
+  }, 500);
+});
+const p3 = new MyPromise((res, rej) => {
+  rej("p1");
+});
+const p5 = new MyPromise((res, rej) => {
+  rej("p1");
+});
+
+const p4 = MyPromise.any([p5, p3])
+  // const p4 = MyPromise.any([p1, p2, p3])
+  // const p4 = MyPromise.any(["aa", p1, p2, p3])
+  .then((res: any) => {
+    console.log("结果：", res);
+  })
+  .catch((err) => {
+    console.log("catch err:", err);
+  });
+
+setTimeout(() => {
+  setTimeout(() => {
+    console.log("p4->", p5);
+    console.log("p4->", p3);
+    console.log("p4->", p4);
+  }, 2000);
+}, 0);

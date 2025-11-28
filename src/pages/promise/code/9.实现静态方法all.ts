@@ -1,15 +1,14 @@
 /**
- *  finally:接收一个没有参数的函数
- * - 当Promise状态发生变化时，无论什么状态都会执行,finally里面的函数都会执行.状态与值都与上一层一致的
- * - 回调函数没有参数、不返回值
- * - 自己的回调函数抛出错误，那么就是输出rejected与错误的值
+ * Promise.all: 传一个迭代器（例如数组:可以被for of遍历，不能被for遍历，迭代器不一定有下标（索引）
+ * 1. 迭代器中：传promise，全部成功才返回。（传普通值直接Promise.resolve()转换，变成一个promise对象）
+ * 2. 成功输出：按照传入的顺序输出：注意理解这个
+ * 3. 失败输出：输出失败的那个promise,原因就是这个失败的Promise的原因
+ * 4. 注意空数组： 返回一个值为空数组的Promise
+ * 5. 不传迭代对象：返回一个值为这个错误的Promise
+ *
+ * 实现注意：要实现迭代器的遍历、何时结束、怎么确定对应的索引
  * */
 
-/**--------------------------------------------------------------------------------------------------*/
-/**
- * 微队列处理函数：
- * Promise A+规范(指then函数)：可以在node与浏览器中使用
- * */
 function MyMicroTask(callback: () => any) {
   if (
     typeof process !== "undefined" &&
@@ -67,7 +66,9 @@ interface ExecutorQueueType {
    * state === fulfilled：调用reslove
    * state === rejected：调用reject
    * */
+  //让then函数返回的Promise成功
   resolve: ComFn;
+  //让then函数返回的Promise失败
   reject: ComFn;
 }
 
@@ -75,23 +76,25 @@ export class MyPromise {
   private state: StateEnum = StateEnum.pending;
   private data: any;
   private executorQueue: ExecutorQueueType[] = [];
-  constructor(executor: (resolve: ComFn, reject: ComFn) => void) {
+  constructor(executor: (_resolve: ComFn, _reject: ComFn) => void) {
     try {
-      executor(this.reslove.bind(this), this.reject.bind(this));
+      executor(this._reslove.bind(this), this._reject.bind(this));
     } catch (error) {
-      this.reject(error);
+      this._reject(error);
     }
   }
   /**
-   * 更改任务状态
-   * */
-  reslove(data?: any) {
+   * 标记当前任务完成
+   * @param {any} data 任务完成的相关数据
+   */
+  private _reslove(data?: any) {
     this.changeState(StateEnum.fulfilled, data);
   }
   /**
-   * 更改任务状态
-   * */
-  reject(msg?: any) {
+   * 标记当前任务失败
+   * @param {any} reason 任务失败的相关数据
+   */
+  private _reject(msg?: any) {
     this.changeState(StateEnum.rejected, msg);
   }
   /**
@@ -143,8 +146,10 @@ export class MyPromise {
             result?.then &&
             typeof result?.then === "function"
           ) {
+            // 无论上一个是fulfill状态还是reject状态。都是调用最新的promise任务标记为完成
             result.then(resolve);
           } else {
+            // 只要是函数
             resolve(result);
           }
         }
@@ -199,52 +204,110 @@ export class MyPromise {
       }
     );
   }
+  /**
+   *返回一个完成的promise
+   * @param {*} [data]
+   * @memberof MyPromise
+   */
+  static resolve(data?: any) {
+    if (data instanceof MyPromise) {
+      return data;
+    }
+    return new MyPromise((reslove, rej) => {
+      if (isPromise(data)) {
+        return data.then(reslove, rej);
+      } else {
+        return reslove(data);
+      }
+    });
+  }
+  /**
+   *返回一个失败的promise状态的Promise。
+   * @param {*} [data]
+   * @return {*}
+   * @memberof MyPromise
+   */
+
+  static reject(data?: any) {
+    return new MyPromise((res, rej) => {
+      rej(data);
+    });
+  }
+
+  /**
+   *all函数
+   * @param {Iterable<any>} data 不一定有数组的方法，只能被for of遍历。所以不能用数组的方法
+   * @memberof MyPromise
+   *
+   */
+  static all(data: Iterable<any>) {
+    const result: any[] = [];
+    let length = 0; // Promise的总数
+    let fulfilledCount = 0; // 已完成的数量
+    return new MyPromise((resolve, rejected) => {
+      try {
+        for (const dn of data) {
+          let index = length; //对应的位置
+          length++;
+          MyPromise.resolve(dn).then((res: any) => {
+            fulfilledCount++;
+            //添加值
+            result[index] = res;
+            // 完成执行返回结果
+            if (fulfilledCount === length) {
+              resolve(result);
+            }
+          }, rejected);
+        }
+        if (length === 0) {
+          resolve(result);
+        }
+      } catch (error) {
+        console.log("all error", error);
+        rejected(error);
+      }
+    });
+  }
 }
-// const p1 = new Promise((res, rej) => {
-//   res("p1");
-// });
-// const p2 = p1.finally(() => {
-//   console.log("finally");
-//   return 456;
-// });
 
-// const p3 = p2.then((res) => {
-//   console.log("p3-->", res);
-// });
-// const p4 = p3.then((res) => {
-//   console.log("p4-->", res);
-// });
-
-// setTimeout(() => {
-//   console.log("p1", p1);
-//   console.log("p2", p2);
-//   console.log("p3", p3);
-//   console.log("p4", p4);
-// }, 1000);
-
-const p11 = new MyPromise((res, rej) => {
-  res("p11");
-});
-const p22 = p11.finally(() => {
-  console.log("finally");
-  // return 456;
-  throw "err 456";
+const p1 = new Promise((res, rej) => {
+  // throw "err 456";
+  setTimeout(() => {
+    res("p1");
+    // rej("===>");
+  }, 1000);
 });
 
-const p33 = p22.then((res) => {
-  console.log("p33-->", res);
-});
-const p44 = p33
+const p2 = Promise.resolve("p2");
+const p3 = Promise.resolve("p3");
+
+// const p4 = Promise.all(["aa", p1, p2, p3])
+/**
+ * 正常测试
+ * */
+// const p4 = MyPromise.all(["aa", p1, p2, p3])
+/**
+ * 不传迭代对象
+ * */
+// const p4 = MyPromise.all(55)
+/**
+ * 空数组
+ * */
+// const p4 = MyPromise.all([])
+
+const p4 = MyPromise.all(["aa", p1, p2, p3])
   .then((res) => {
-    console.log("p4-->", res);
+    console.log("结果：", res);
   })
   .catch((err) => {
-    console.log(err);
+    console.log("catch err:", err);
   });
 
 setTimeout(() => {
-  console.log("p11", p11);
-  console.log("p22", p22);
-  console.log("p33", p33);
-  console.log("p44", p44);
-}, 1000);
+  setTimeout(() => {
+    console.log("p1->", p1);
+    console.log("p2->", p2);
+    console.log("p2->", p3);
+    console.log("p4->", p4);
+  }, 2000);
+}, 0);

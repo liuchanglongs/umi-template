@@ -1,15 +1,7 @@
 /**
- *  finally:接收一个没有参数的函数
- * - 当Promise状态发生变化时，无论什么状态都会执行,finally里面的函数都会执行.状态与值都与上一层一致的
- * - 回调函数没有参数、不返回值
- * - 自己的回调函数抛出错误，那么就是输出rejected与错误的值
+ * Promise.reject(): 返回一个失败的promise状态的Promise。
  * */
 
-/**--------------------------------------------------------------------------------------------------*/
-/**
- * 微队列处理函数：
- * Promise A+规范(指then函数)：可以在node与浏览器中使用
- * */
 function MyMicroTask(callback: () => any) {
   if (
     typeof process !== "undefined" &&
@@ -67,7 +59,9 @@ interface ExecutorQueueType {
    * state === fulfilled：调用reslove
    * state === rejected：调用reject
    * */
+  //让then函数返回的Promise成功
   resolve: ComFn;
+  //让then函数返回的Promise失败
   reject: ComFn;
 }
 
@@ -75,23 +69,25 @@ export class MyPromise {
   private state: StateEnum = StateEnum.pending;
   private data: any;
   private executorQueue: ExecutorQueueType[] = [];
-  constructor(executor: (resolve: ComFn, reject: ComFn) => void) {
+  constructor(executor: (_resolve: ComFn, _reject: ComFn) => void) {
     try {
-      executor(this.reslove.bind(this), this.reject.bind(this));
+      executor(this._reslove.bind(this), this._reject.bind(this));
     } catch (error) {
-      this.reject(error);
+      this._reject(error);
     }
   }
   /**
-   * 更改任务状态
-   * */
-  reslove(data?: any) {
+   * 标记当前任务完成
+   * @param {any} data 任务完成的相关数据
+   */
+  private _reslove(data?: any) {
     this.changeState(StateEnum.fulfilled, data);
   }
   /**
-   * 更改任务状态
-   * */
-  reject(msg?: any) {
+   * 标记当前任务失败
+   * @param {any} reason 任务失败的相关数据
+   */
+  private _reject(msg?: any) {
     this.changeState(StateEnum.rejected, msg);
   }
   /**
@@ -143,8 +139,10 @@ export class MyPromise {
             result?.then &&
             typeof result?.then === "function"
           ) {
+            // 无论上一个是fulfill状态还是reject状态。都是调用最新的promise任务标记为完成
             result.then(resolve);
           } else {
+            // 只要是函数
             resolve(result);
           }
         }
@@ -199,52 +197,49 @@ export class MyPromise {
       }
     );
   }
+  /**
+   *返回一个完成的promise
+   * @param {*} [data]
+   * @memberof MyPromise
+   */
+  static resolve(data?: any) {
+    if (data instanceof MyPromise) {
+      return data;
+    }
+    return new MyPromise((reslove, rej) => {
+      if (isPromise(data)) {
+        return data.then(reslove, rej);
+      } else {
+        return reslove(data);
+      }
+    });
+  }
+  /**
+   *返回一个失败的promise状态的Promise。
+   * @param {*} [data]
+   * @memberof MyPromise
+   */
+  static reject(data?: any) {
+    return new MyPromise((res, rej) => {
+      rej(data);
+    });
+  }
 }
-// const p1 = new Promise((res, rej) => {
-//   res("p1");
-// });
-// const p2 = p1.finally(() => {
-//   console.log("finally");
-//   return 456;
-// });
 
-// const p3 = p2.then((res) => {
-//   console.log("p3-->", res);
-// });
-// const p4 = p3.then((res) => {
-//   console.log("p4-->", res);
-// });
+const p1 = MyPromise.reject("----->");
 
-// setTimeout(() => {
-//   console.log("p1", p1);
-//   console.log("p2", p2);
-//   console.log("p3", p3);
-//   console.log("p4", p4);
-// }, 1000);
-
-const p11 = new MyPromise((res, rej) => {
-  res("p11");
-});
-const p22 = p11.finally(() => {
-  console.log("finally");
-  // return 456;
-  throw "err 456";
-});
-
-const p33 = p22.then((res) => {
-  console.log("p33-->", res);
-});
-const p44 = p33
-  .then((res) => {
-    console.log("p4-->", res);
-  })
-  .catch((err) => {
-    console.log(err);
-  });
-
+const p2 = p1.then(
+  (data: any) => {
+    console.log("data", data);
+  },
+  (err: any) => {
+    console.log("err", err);
+  }
+);
+console.log("p1->", p1);
+console.log("p2->", p2);
 setTimeout(() => {
-  console.log("p11", p11);
-  console.log("p22", p22);
-  console.log("p33", p33);
-  console.log("p44", p44);
-}, 1000);
+  console.log("-------------");
+  console.log("p1->", p1);
+  console.log("p2->", p2);
+}, 0);
