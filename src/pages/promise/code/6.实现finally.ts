@@ -155,8 +155,12 @@ export class MyPromise {
   }
 
   /**
-   * then: 注册队列函数
-   * */
+   * 处理异步操作的Promise方法 用于注册Promise的成功和失败回调
+   * @param {(OnReslveType | any)} [onReslve] Promise成功时的回调函数
+   * @param {(OnRejectType | any)} [onReject]
+   * @return {*}
+   * @memberof MyPromise
+   */
   then(onReslve?: OnReslveType | any, onReject?: OnRejectType | any) {
     return new MyPromise((resolve: ComFn, reject: ComFn) => {
       /**
