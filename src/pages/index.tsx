@@ -50,6 +50,11 @@ const items: MenuItem[] = [
   //     getItem("Alex", "5"),
   //   ]),
   getItem("promise", "/promise", <DesktopOutlined />),
+  getItem(
+    "label-click-modal-bug",
+    "/LabelClickModalBugDemo",
+    <DesktopOutlined />
+  ),
 
   getItem("Team", "sub2", <TeamOutlined />, [
     getItem("Team 1", "6"),

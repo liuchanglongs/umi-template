@@ -31,6 +31,10 @@ export default {
           path: "/promise",
           component: "@/pages/promise",
         },
+        {
+          path: "/LabelClickModalBugDemo",
+          component: "@/pages/label-click-modal-bug",
+        },
       ],
     },
   ],
