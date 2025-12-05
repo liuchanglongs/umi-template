@@ -1,18 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import "antd/dist/antd.variable.min.css";
 import {
   DesktopOutlined,
   FileOutlined,
   PieChartOutlined,
   TeamOutlined,
-  UserOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Breadcrumb, Layout, Menu, theme } from "antd";
+import { ConfigProvider, Layout, Menu } from "antd";
 import { Outlet, useNavigate } from "umi";
 import store from "../reactRedux";
 import { Provider } from "react-redux";
-
-const { Header, Content, Footer, Sider } = Layout;
+// import "antd/dist/antd.css";
+// import "antd/dist/antd.less";
+const { Content, Sider } = Layout;
 
 type MenuItem = Required<MenuProps>["items"][number];
 
@@ -55,7 +56,7 @@ const items: MenuItem[] = [
     "/LabelClickModalBugDemo",
     <DesktopOutlined />
   ),
-
+  getItem("theme-switch", "/theme-switch", <DesktopOutlined />),
   getItem("Team", "sub2", <TeamOutlined />, [
     getItem("Team 1", "6"),
     getItem("Team 2", "8"),
@@ -66,55 +67,60 @@ const items: MenuItem[] = [
 const App: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
-
+  useEffect(() => {
+    ConfigProvider.config({
+      theme: {
+        primaryColor: "#1FA979",
+        errorColor: "#f5222d",
+        warningColor: "#faad14",
+        successColor: "#52c41a",
+        infoColor: "#1FA979",
+      },
+    });
+  }, []);
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider
-        collapsible
-        collapsed={collapsed}
-        onCollapse={(value) => setCollapsed(value)}
-      >
-        <div className="demo-logo-vertical" />
-        <Menu
-          theme="dark"
-          //   defaultSelectedKeys={["1"]}
-          mode="inline"
-          onClick={({ key }) => {
-            navigate(key);
-          }}
-          items={items}
-        />
-      </Sider>
-      <Layout>
-        {/* <Header style={{ padding: 0, background: colorBgContainer }} /> */}
-        <Content>
-          {/* <Breadcrumb
+    <ConfigProvider>
+      <Layout style={{ minHeight: "100vh" }}>
+        <Sider
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+        >
+          <div className="demo-logo-vertical" />
+          <Menu
+            mode="inline"
+            onClick={({ key }) => {
+              navigate(key);
+            }}
+            items={items}
+          />
+        </Sider>
+        <Layout>
+          {/* <Header style={{ padding: 0, background: colorBgContainer }} /> */}
+          <Content>
+            {/* <Breadcrumb
             style={{ margin: "16px 0" }}
             items={[{ title: "User" }, { title: "Bill" }]}
           /> */}
-          <div
-            style={{
-              boxSizing: "border-box",
-              padding: 8,
-              //   minHeight: 360,
-              height: "100%",
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-            }}
-          >
-            <Provider store={store}>
-              <Outlet />
-            </Provider>
-          </div>
-        </Content>
-        {/* <Footer style={{ textAlign: "center" }}>
+            <div
+              style={{
+                boxSizing: "border-box",
+                padding: 8,
+                //   minHeight: 360,
+                height: "100%",
+              }}
+            >
+              <Provider store={store}>
+                <Outlet />
+              </Provider>
+            </div>
+          </Content>
+          {/* <Footer style={{ textAlign: "center" }}>
           Ant Design ©{new Date().getFullYear()} Created by Ant UED
         </Footer> */}
+        </Layout>
       </Layout>
-    </Layout>
+    </ConfigProvider>
   );
 };
 

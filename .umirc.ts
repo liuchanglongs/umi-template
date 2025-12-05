@@ -35,6 +35,10 @@ export default {
           path: "/LabelClickModalBugDemo",
           component: "@/pages/label-click-modal-bug",
         },
+        {
+          path: "/theme-switch",
+          component: "@/pages/theme-switch",
+        },
       ],
     },
   ],
